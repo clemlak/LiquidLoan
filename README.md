@@ -13,7 +13,7 @@ This PoC dApp allows people to borrow / lend Hydro tokens. The whole concept is 
 * Users sign up to the dApp using their Snowflake ID
 * A score is associated to each Snowflake ID, this score is permanent and will not reset, even if the user signs out and signs up again
 * Score starts from 0 to "infinite"
-* Everyone starts with a score of 10 000
+* Everyone starts with a score of 500
 * If you lend money, you'll receive 1 point per token you've lent
 * If you borrow money, you'll receive 1 point per token you've reimbursed
 * Being late / NOT reimbursing a loan will cost you A LOT of points
@@ -26,3 +26,4 @@ Possible future features:
 * Sign up fee to use
 * Include a collateral
 * Lending funds go to a "pool"
+* Multiple lenders for a borrower
