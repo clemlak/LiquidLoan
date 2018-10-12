@@ -110,6 +110,8 @@ contract LiquidLoan is SnowflakeResolver {
     Snowflake snowflake = Snowflake(snowflakeAddress);
     string memory hydroId = snowflake.getHydroId(msg.sender);
 
+    require(loansToBorrowers[loanId] != hydroId, "You cannot lend funds to yourself");
+    
     ERC20 hydroToken = ERC20(hydroTokenContractAddress);
 
     require(
