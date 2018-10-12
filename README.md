@@ -4,7 +4,7 @@
 
 *Note: This project is still in progress.*
 
-LiquidLoan is a Proof-of-Concept dApp built into the [Snowflake](https://github.com/NoahHydro/snowflake-dashboard) dApp store. The goal of this project is to try out the development of a dApp built on Snowflake and to provide the Hydro team a feedback about the experience.
+LiquidLoan is a Proof-of-Concept dApp built into the [Snowflake](https://github.com/NoahHydro/snowflake-dashboard) dApp store. The goal of this project is to try out the development of a dApp built on Snowflake and to provide the [Hydro](https://github.com/hydrogen-dev) team a feedback about the experience.
 
 ## How it works
 
