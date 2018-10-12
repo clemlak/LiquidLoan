@@ -32,7 +32,7 @@ contract LiquidLoan is SnowflakeResolver {
   /* hydroId are linked to a score */
   mapping (string => uint256) internal usersToScores;
 
-  uint256 public startingScore = 500;
+  uint256 public startingScore = 50000;
 
   /**
    * Our loans can have 3 different states:
