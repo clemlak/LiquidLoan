@@ -1,4 +1,4 @@
-pragma solidity 0.4.24;
+pragma solidity 0.4.25;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "./ERC20.sol";
@@ -111,7 +111,7 @@ contract LiquidLoan is SnowflakeResolver {
     string memory hydroId = snowflake.getHydroId(msg.sender);
 
     require(loansToBorrowers[loanId] != hydroId, "You cannot lend funds to yourself");
-    
+
     ERC20 hydroToken = ERC20(hydroTokenContractAddress);
 
     require(
