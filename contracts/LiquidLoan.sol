@@ -18,7 +18,7 @@ contract LiquidLoan is SnowflakeResolver {
     snowflakeAddress = 0x920b3eD908F5E63DC859C0D61cA2a270f0663e58;
 
     callOnSignUp = true;
-    callOnRemoval = true;
+    callOnRemoval = false;
   }
 
   address public hydroTokenContractAddress = 0x4959c7f62051D6b2ed6EaeD3AAeE1F961B145F20;
