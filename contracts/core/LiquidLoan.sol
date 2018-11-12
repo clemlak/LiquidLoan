@@ -4,6 +4,7 @@ pragma solidity 0.4.25;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "../snowflake/SnowflakeResolver.sol";
+import "../snowflake/IdentityRegistryInterface.sol";
 import "../snowflake/Snowflake.sol";
 
 
@@ -22,7 +23,9 @@ contract LiquidLoan is SnowflakeResolver {
     callOnRemoval = false;
   }
 
-  address private tokenAddress;
+  address private identityRegistryAddress = 0x8d37E9744887a4673CaEA1fd524d0FED7Edb1c23;
+
+  uint256 private snowflakeOwnerId = 3963877391197344453575983046348115674221700746820753546331534351508065746944;
 
   uint16 private fees = 150;
 
@@ -33,7 +36,7 @@ contract LiquidLoan is SnowflakeResolver {
     uint256 reimbursed;
   }
 
-  mapping (string => User) private users;
+  mapping (uint256 => User) private users;
 
   enum Status { Open, Ongoing, Closed, Confronted }
 
@@ -43,24 +46,24 @@ contract LiquidLoan is SnowflakeResolver {
     Status status;
     uint16 rate;
     uint32 deadline;
-    string borrower;
-    string lender;
+    uint256 borrower;
+    uint256 lender;
   }
 
   Loan[] private loans;
 
-  mapping (string => uint256[]) private lendersToLoans;
-  mapping (string => uint256[]) private borrowersToLoans;
+  mapping (uint256 => uint256[]) private lendersToLoans;
+  mapping (uint256 => uint256[]) private borrowersToLoans;
 
   event LogLoanRequested(
     uint256 loanId,
-    string borrower
+    uint256 borrower
   );
 
   event LogLoanAccepted(
     uint256 loanId,
-    string borrower,
-    string lender
+    uint256 borrower,
+    uint256 lender
   );
 
   event LogLoanReimbursed(
@@ -73,8 +76,8 @@ contract LiquidLoan is SnowflakeResolver {
   );
 
   function requestLoan(uint256 amount, uint16 rate, uint32 deadline) external {
-    Snowflake snowflake = Snowflake(snowflakeAddress);
-    string memory hydroId = snowflake.getHydroId(msg.sender);
+    IdentityRegistryInterface identity = IdentityRegistryInterface(identityRegistryAddress);
+    uint256 hydroId = identity.getEIN(msg.sender);
 
     uint256 loanId = loans.push(
       Loan({
@@ -84,7 +87,7 @@ contract LiquidLoan is SnowflakeResolver {
         deadline: deadline,
         status: Status.Open,
         borrower: hydroId,
-        lender: "",
+        lender: 0
       })
     ) - 1;
 
@@ -95,12 +98,14 @@ contract LiquidLoan is SnowflakeResolver {
 
   function lend(uint256 loanId) external {
     Snowflake snowflake = Snowflake(snowflakeAddress);
-    string memory hydroId = snowflake.getHydroId(msg.sender);
+
+    IdentityRegistryInterface identity = IdentityRegistryInterface(identityRegistryAddress);
+    uint256 hydroId = identity.getEIN(msg.sender);
 
     require(loans[loanId].status == Status.Open, "Loan is not open");
 
     require(
-      keccak256(abi.encodePacked(loans[loanId].borrower)) != keccak256(abi.encodePacked(hydroId)),
+      loans[loanId].borrower != hydroId,
       "You cannot lend funds to yourself"
     );
 
@@ -133,22 +138,21 @@ contract LiquidLoan is SnowflakeResolver {
 
     emit LogLoanAccepted(loanId, loans[loanId].borrower, loans[loanId].lender);
 
-    require(
-      transferSnowflakeBalanceFrom(loans[loanId].lender, loans[loanId].borrower, loans[loanId].amount),
-      "Funds were not transfered"
-    );
+    snowflake.transferSnowflakeBalanceFrom(loans[loanId].lender, loans[loanId].borrower, loans[loanId].amount);
   }
 
   function reimburse(uint256 loanId, uint256 amount) external {
     Snowflake snowflake = Snowflake(snowflakeAddress);
-    string memory hydroId = snowflake.getHydroId(msg.sender);
+
+    IdentityRegistryInterface identity = IdentityRegistryInterface(identityRegistryAddress);
+    uint256 hydroId = identity.getEIN(msg.sender);
 
     require(loans[loanId].status == Status.Ongoing, "Loan cannot be reimbursed at this moment");
 
     require(now < loans[loanId].deadline, "Deadline has been reached");
 
     require(
-      keccak256(abi.encodePacked(loans[loanId].borrower)) == keccak256(abi.encodePacked(hydroId)),
+      loans[loanId].borrower == hydroId,
       "Sender is not the borrower of this loan"
     );
 
@@ -178,18 +182,12 @@ contract LiquidLoan is SnowflakeResolver {
 
     emit LogLoanReimbursed(loanId, amount);
 
-    require(
-      transferSnowflakeBalanceFrom(loans[loanId].borrower, loans[loanId].lender, reimbursedAmount),
-      "Funds cannot be transfered"
-    );
+    snowflake.transferSnowflakeBalanceFrom(loans[loanId].borrower, loans[loanId].lender, reimbursedAmount);
 
-    require(
-      transferSnowflakeBalanceFrom(loans[loanId].borrower, address(this), fees),
-      "Funds cannot be transfered"
-    );
+    snowflake.transferSnowflakeBalanceFrom(loans[loanId].borrower, snowflakeOwnerId, fees);
   }
 
-  function getUserinfo(string user) external view returns (
+  function getUserinfo(uint256 user) external view returns (
     uint256,
     uint256,
     uint256,
@@ -208,8 +206,8 @@ contract LiquidLoan is SnowflakeResolver {
     uint256,
     uint16,
     uint32,
-    string,
-    string
+    uint256,
+    uint256
   ) {
     return (
       loans[loanId].amount,
@@ -223,5 +221,11 @@ contract LiquidLoan is SnowflakeResolver {
 
   function getLoanStatus(uint256 loanId) external view returns (Status) {
     return loans[loanId].status;
+  }
+
+  function getEINFromAddress(address user) external view returns (uint256) {
+    IdentityRegistryInterface identity = IdentityRegistryInterface(identityRegistryAddress);
+
+    return identity.getEIN(user);
   }
 }
