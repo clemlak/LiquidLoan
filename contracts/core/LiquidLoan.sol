@@ -27,7 +27,6 @@ contract LiquidLoan is SnowflakeResolver {
   uint16 private fees = 150;
 
   struct User {
-    bool isSignedUp;
     uint256 currentDebt;
     uint256 lent;
     uint256 borrowed;
