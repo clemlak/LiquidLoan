@@ -1,4 +1,4 @@
-pragma solidity 0.4.24;
+pragma solidity 0.4.25;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
@@ -18,7 +18,7 @@ contract SnowflakeResolver is Ownable {
   // function called every time a user sets your contract as a resolver if callOnSignUp is true
   // this function *(must** include: require(msg.sender == snowflakeAddress);
   // returning false will disallow users from setting your contract as a resolver
-  function onSignUp(string hydroId, uint allowance) public returns (bool);
+  // function onSignUp(string hydroId, uint allowance) public returns (bool);
 
   // function called every time a user sets your contract as a resolver if callOnRemoval is true
   // this function *must** include: require(msg.sender == snowflakeAddress);
