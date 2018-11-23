@@ -17,15 +17,15 @@ contract LiquidLoan is SnowflakeResolver {
   constructor() public {
     snowflakeName = "LiquidLoan";
     snowflakeDescription = "P2P crypto lending";
-    snowflakeAddress = 0x920b3eD908F5E63DC859C0D61cA2a270f0663e58;
+    snowflakeAddress = 0x9b4af5482c91de824E47a13087b1787048A5a518;
 
     callOnSignUp = false;
     callOnRemoval = false;
   }
 
-  address private identityRegistryAddress = 0x8d37E9744887a4673CaEA1fd524d0FED7Edb1c23;
+  address private identityRegistryAddress = 0xC4B6CC71A8EAF9B5446F16765e86B8D333C43F9b;
 
-  uint256 private snowflakeOwnerId = 3963877391197344453575983046348115674221700746820753546331534351508065746944;
+  uint256 private snowflakeOwnerId = 4;
 
   uint16 private fees = 150;
 
