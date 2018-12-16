@@ -1,11 +1,11 @@
 /* solhint-disable not-rely-on-time, function-max-lines */
 
-pragma solidity 0.4.25;
+pragma solidity 0.5.0;
 
-import "openzeppelin-solidity/contracts/math/SafeMath.sol";
-import "../snowflake/SnowflakeResolver.sol";
-import "../snowflake/IdentityRegistryInterface.sol";
-import "../snowflake/Snowflake.sol";
+import "./SafeMath.sol";
+import "./SnowflakeResolver.sol";
+import "./IdentityRegistryInterface.sol";
+import "./SnowflakeInterface.sol";
 
 
 /**
@@ -14,13 +14,13 @@ import "../snowflake/Snowflake.sol";
  * @author Clemlak https://github.com/clemlak
  */
 contract LiquidLoan is SnowflakeResolver {
-  constructor() public {
-    snowflakeName = "LiquidLoan";
-    snowflakeDescription = "P2P crypto lending";
-    snowflakeAddress = 0x9b4af5482c91de824E47a13087b1787048A5a518;
-
-    callOnSignUp = false;
-    callOnRemoval = false;
+  constructor() public SnowflakeResolver(
+    "LiquidLoan",
+    "P2P crypto lending",
+    0x9b4af5482c91de824E47a13087b1787048A5a518,
+    false,
+    false
+  ) {
   }
 
   address private identityRegistryAddress = 0xC4B6CC71A8EAF9B5446F16765e86B8D333C43F9b;
@@ -97,7 +97,7 @@ contract LiquidLoan is SnowflakeResolver {
   }
 
   function lend(uint256 loanId) external {
-    Snowflake snowflake = Snowflake(snowflakeAddress);
+    SnowflakeInterface snowflake = SnowflakeInterface(snowflakeAddress);
 
     IdentityRegistryInterface identity = IdentityRegistryInterface(identityRegistryAddress);
     uint256 hydroId = identity.getEIN(msg.sender);
@@ -142,7 +142,7 @@ contract LiquidLoan is SnowflakeResolver {
   }
 
   function reimburse(uint256 loanId, uint256 amount) external {
-    Snowflake snowflake = Snowflake(snowflakeAddress);
+    SnowflakeInterface snowflake = SnowflakeInterface(snowflakeAddress);
 
     IdentityRegistryInterface identity = IdentityRegistryInterface(identityRegistryAddress);
     uint256 hydroId = identity.getEIN(msg.sender);
