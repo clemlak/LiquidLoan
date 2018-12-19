@@ -14,18 +14,17 @@ import "./SnowflakeInterface.sol";
  * @author Clemlak https://github.com/clemlak
  */
 contract LiquidLoan is SnowflakeResolver {
-  constructor() public SnowflakeResolver(
+  constructor(address snowflakeAddress) public SnowflakeResolver(
     "LiquidLoan",
     "P2P crypto lending",
-    0x9b4af5482c91de824E47a13087b1787048A5a518,
+    snowflakeAddress,
     false,
     false
   ) {
   }
 
-  address private identityRegistryAddress = 0xC4B6CC71A8EAF9B5446F16765e86B8D333C43F9b;
-
-  uint256 private snowflakeOwnerId = 4;
+  function onAddition(uint ein, uint, bytes memory) public senderIsSnowflake() returns (bool) {}
+  function onRemoval(uint, bytes memory) public senderIsSnowflake() returns (bool) {}
 
   uint16 private fees = 150;
 
@@ -76,8 +75,11 @@ contract LiquidLoan is SnowflakeResolver {
   );
 
   function requestLoan(uint256 amount, uint16 rate, uint32 deadline) external {
-    IdentityRegistryInterface identity = IdentityRegistryInterface(identityRegistryAddress);
-    uint256 hydroId = identity.getEIN(msg.sender);
+    SnowflakeInterface snowflake = SnowflakeInterface(snowflakeAddress);
+    IdentityRegistryInterface identityRegistry = IdentityRegistryInterface(snowflake.identityRegistryAddress());
+
+    uint256 ein = identityRegistry.getEIN(msg.sender);
+    require(identityRegistry.isResolverFor(ein, address(this)), "The EIN has not sent this resolver");
 
     uint256 loanId = loans.push(
       Loan({
@@ -86,26 +88,27 @@ contract LiquidLoan is SnowflakeResolver {
         rate: rate,
         deadline: deadline,
         status: Status.Open,
-        borrower: hydroId,
+        borrower: ein,
         lender: 0
       })
     ) - 1;
 
-    borrowersToLoans[hydroId].push(loanId);
+    borrowersToLoans[ein].push(loanId);
 
     emit LogLoanRequested(loanId, loans[loanId].borrower);
   }
 
   function lend(uint256 loanId) external {
     SnowflakeInterface snowflake = SnowflakeInterface(snowflakeAddress);
+    IdentityRegistryInterface identityRegistry = IdentityRegistryInterface(snowflake.identityRegistryAddress());
 
-    IdentityRegistryInterface identity = IdentityRegistryInterface(identityRegistryAddress);
-    uint256 hydroId = identity.getEIN(msg.sender);
+    uint256 ein = identityRegistry.getEIN(msg.sender);
+    require(identityRegistry.isResolverFor(ein, address(this)), "The EIN has not sent this resolver");
 
     require(loans[loanId].status == Status.Open, "Loan is not open");
 
     require(
-      loans[loanId].borrower != hydroId,
+      loans[loanId].borrower != ein,
       "You cannot lend funds to yourself"
     );
 
@@ -121,14 +124,14 @@ contract LiquidLoan is SnowflakeResolver {
 
     loans[loanId].currentDebt = currentDebt;
 
-    loans[loanId].lender = hydroId;
+    loans[loanId].lender = ein;
     loans[loanId].status = Status.Ongoing;
 
-    lendersToLoans[hydroId].push(loanId);
+    lendersToLoans[ein].push(loanId);
 
-    users[hydroId].lent = SafeMath.add(
-      users[hydroId].lent,
-      loans[loanId].amount
+    users[ein].lent = SafeMath.add(
+      users[ein].lent,
+      loans[ein].amount
     );
 
     users[loans[loanId].borrower].currentDebt = SafeMath.add(
@@ -143,16 +146,18 @@ contract LiquidLoan is SnowflakeResolver {
 
   function reimburse(uint256 loanId, uint256 amount) external {
     SnowflakeInterface snowflake = SnowflakeInterface(snowflakeAddress);
+    IdentityRegistryInterface identityRegistry = IdentityRegistryInterface(snowflake.identityRegistryAddress());
 
-    IdentityRegistryInterface identity = IdentityRegistryInterface(identityRegistryAddress);
-    uint256 hydroId = identity.getEIN(msg.sender);
+    uint256 ein = identityRegistry.getEIN(msg.sender);
+    require(identityRegistry.isResolverFor(ein, address(this)), "The EIN has not sent this resolver");
+
 
     require(loans[loanId].status == Status.Ongoing, "Loan cannot be reimbursed at this moment");
 
     require(now < loans[loanId].deadline, "Deadline has been reached");
 
     require(
-      loans[loanId].borrower == hydroId,
+      loans[loanId].borrower == ein,
       "Sender is not the borrower of this loan"
     );
 
@@ -184,7 +189,13 @@ contract LiquidLoan is SnowflakeResolver {
 
     snowflake.transferSnowflakeBalanceFrom(loans[loanId].borrower, loans[loanId].lender, reimbursedAmount);
 
-    snowflake.transferSnowflakeBalanceFrom(loans[loanId].borrower, snowflakeOwnerId, fees);
+    snowflake.transferSnowflakeBalanceFrom(loans[loanId].borrower, 0, fees);
+  }
+
+  function withdrawFees(address to) public onlyOwner() {
+    SnowflakeInterface snowflake = SnowflakeInterface(snowflakeAddress);
+    HydroInterface hydro = HydroInterface(snowflake.hydroTokenAddress());
+    withdrawHydroBalanceTo(to, hydro.balanceOf(address(this)));
   }
 
   function getUserinfo(uint256 user) external view returns (
@@ -221,11 +232,5 @@ contract LiquidLoan is SnowflakeResolver {
 
   function getLoanStatus(uint256 loanId) external view returns (Status) {
     return loans[loanId].status;
-  }
-
-  function getEINFromAddress(address user) external view returns (uint256) {
-    IdentityRegistryInterface identity = IdentityRegistryInterface(identityRegistryAddress);
-
-    return identity.getEIN(user);
   }
 }
