@@ -19,7 +19,7 @@ module.exports = {
         return new HDWalletProvider(process.env.MNEMONIC, rinkebyUrl, 0);
       },
       network_id: 4,
-      gasPrice: web3.utils.toWei('100', 'gwei'),
+      gasPrice: web3.utils.toWei('10', 'gwei'),
       gas: 4712388,
     },
     live: {
