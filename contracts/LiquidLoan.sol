@@ -26,7 +26,9 @@ contract LiquidLoan is SnowflakeResolver {
   function onAddition(uint ein, uint, bytes memory) public senderIsSnowflake() returns (bool) {}
   function onRemoval(uint, bytes memory) public senderIsSnowflake() returns (bool) {}
 
-  uint16 private fees = 150;
+  uint16 public fees = 150;
+  uint256 public ownerEin = 25;
+  uint256 private decimals = 10 ** 18;
 
   struct User {
     uint256 currentDebt;
@@ -37,7 +39,7 @@ contract LiquidLoan is SnowflakeResolver {
 
   mapping (uint256 => User) private users;
 
-  enum Status { Open, Ongoing, Closed, Confronted }
+  enum Status { Open, Ongoing, Closed }
 
   struct Loan {
     uint256 amount;
@@ -49,7 +51,7 @@ contract LiquidLoan is SnowflakeResolver {
     uint256 lender;
   }
 
-  Loan[] private loans;
+  Loan[] public loans;
 
   mapping (uint256 => uint256[]) private lendersToLoans;
   mapping (uint256 => uint256[]) private borrowersToLoans;
@@ -74,17 +76,31 @@ contract LiquidLoan is SnowflakeResolver {
     uint256 loanId
   );
 
+  function setOwnerEin(uint256 newOwnerEin) external onlyOwner() {
+    ownerEin = newOwnerEin;
+  }
+
   function requestLoan(uint256 amount, uint16 rate, uint32 deadline) external {
+    uint256 amountWithDecimals = SafeMath.mul(amount, decimals);
+
     SnowflakeInterface snowflake = SnowflakeInterface(snowflakeAddress);
     IdentityRegistryInterface identityRegistry = IdentityRegistryInterface(snowflake.identityRegistryAddress());
 
     uint256 ein = identityRegistry.getEIN(msg.sender);
     require(identityRegistry.isResolverFor(ein, address(this)), "The EIN has not sent this resolver");
 
+    uint256 currentDebt = SafeMath.add(
+      amountWithDecimals,
+        SafeMath.mul(
+          amountWithDecimals,
+          rate
+        ) / 10000
+    );
+
     uint256 loanId = loans.push(
       Loan({
-        amount: amount,
-        currentDebt: 0,
+        amount: amountWithDecimals,
+        currentDebt: currentDebt,
         rate: rate,
         deadline: deadline,
         status: Status.Open,
@@ -114,16 +130,6 @@ contract LiquidLoan is SnowflakeResolver {
 
     require(now < loans[loanId].deadline, "Deadline has been reached");
 
-    uint256 currentDebt = SafeMath.add(
-      loans[loanId].amount,
-      SafeMath.mul(
-        loans[loanId].amount,
-        uint256(loans[loanId].rate)
-      ) / 10000
-    );
-
-    loans[loanId].currentDebt = currentDebt;
-
     loans[loanId].lender = ein;
     loans[loanId].status = Status.Ongoing;
 
@@ -131,12 +137,12 @@ contract LiquidLoan is SnowflakeResolver {
 
     users[ein].lent = SafeMath.add(
       users[ein].lent,
-      loans[ein].amount
+      loans[loanId].amount
     );
 
     users[loans[loanId].borrower].currentDebt = SafeMath.add(
       users[loans[loanId].borrower].currentDebt,
-      currentDebt
+      loans[loanId].currentDebt
     );
 
     emit LogLoanAccepted(loanId, loans[loanId].borrower, loans[loanId].lender);
@@ -145,6 +151,8 @@ contract LiquidLoan is SnowflakeResolver {
   }
 
   function reimburse(uint256 loanId, uint256 amount) external {
+    uint256 amountWithDecimals = SafeMath.mul(amount, decimals);
+
     SnowflakeInterface snowflake = SnowflakeInterface(snowflakeAddress);
     IdentityRegistryInterface identityRegistry = IdentityRegistryInterface(snowflake.identityRegistryAddress());
 
@@ -161,9 +169,9 @@ contract LiquidLoan is SnowflakeResolver {
       "Sender is not the borrower of this loan"
     );
 
-    require(amount <= loans[loanId].currentDebt, "Sent amount is too high");
+    require(amountWithDecimals <= loans[loanId].currentDebt, "Sent amount is too high");
 
-    loans[loanId].currentDebt = SafeMath.sub(loans[loanId].currentDebt, amount);
+    loans[loanId].currentDebt = SafeMath.sub(loans[loanId].currentDebt, amountWithDecimals);
 
     if (loans[loanId].currentDebt == 0) {
       loans[loanId].status = Status.Closed;
@@ -173,23 +181,23 @@ contract LiquidLoan is SnowflakeResolver {
 
     users[loans[loanId].borrower].currentDebt = SafeMath.sub(
       users[loans[loanId].borrower].currentDebt,
-      amount
+      amountWithDecimals
     );
 
     users[loans[loanId].borrower].reimbursed = SafeMath.add(
       users[loans[loanId].borrower].reimbursed,
-      amount
+      amountWithDecimals
     );
 
-    uint256 feesAmount = SafeMath.mul(amount, uint256(fees)) / 10000;
+    uint256 feesAmount = SafeMath.mul(amountWithDecimals, uint256(fees)) / 10000;
 
-    uint256 reimbursedAmount = SafeMath.sub(amount, feesAmount);
+    uint256 reimbursedAmount = SafeMath.sub(amountWithDecimals, feesAmount);
 
-    emit LogLoanReimbursed(loanId, amount);
+    emit LogLoanReimbursed(loanId, amountWithDecimals);
 
     snowflake.transferSnowflakeBalanceFrom(loans[loanId].borrower, loans[loanId].lender, reimbursedAmount);
 
-    snowflake.transferSnowflakeBalanceFrom(loans[loanId].borrower, 0, fees);
+    snowflake.transferSnowflakeBalanceFrom(loans[loanId].borrower, ownerEin, fees);
   }
 
   function withdrawFees(address to) public onlyOwner() {
@@ -232,5 +240,9 @@ contract LiquidLoan is SnowflakeResolver {
 
   function getLoanStatus(uint256 loanId) external view returns (Status) {
     return loans[loanId].status;
+  }
+
+  function getLoansCount() external view returns (uint256) {
+    return loans.length;
   }
 }
