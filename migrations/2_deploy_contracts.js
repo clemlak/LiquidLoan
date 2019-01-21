@@ -2,7 +2,7 @@
 /* global artifacts */
 
 const LiquidLoan = artifacts.require('./core/LiquidLoan');
-const snowflakeAddress = '0x7EdA95f86D49ac97D2142Cb3903915835160efEe';
+const snowflakeAddress = '0x03713e8a046bb4beefb03e74a74ed2236ee7b8cb';
 
 function deployContracts(deployer) {
   deployer.deploy(LiquidLoan, snowflakeAddress);
