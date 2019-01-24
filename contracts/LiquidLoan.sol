@@ -43,11 +43,12 @@ contract LiquidLoan is SnowflakeResolver {
   struct Loan {
     uint256 amount;
     uint256 currentDebt;
+    uint256 borrower;
+    uint256 lender;
     Status status;
     uint16 rate;
     uint32 deadline;
-    uint256 borrower;
-    uint256 lender;
+    uint32 createdAt;
   }
 
   Loan[] public loans;
@@ -91,7 +92,7 @@ contract LiquidLoan is SnowflakeResolver {
         SafeMath.mul(
           amount,
           rate
-        ) / 10000
+        ) / 100
     );
 
     uint256 loanId = loans.push(
@@ -102,7 +103,8 @@ contract LiquidLoan is SnowflakeResolver {
         deadline: deadline,
         status: Status.Open,
         borrower: ein,
-        lender: 0
+        lender: 0,
+        createdAt: uint32(now)
       })
     ) - 1;
 
@@ -215,13 +217,22 @@ contract LiquidLoan is SnowflakeResolver {
     );
   }
 
+  function getUserLentLoans(uint256 user) external view returns (uint256[] memory) {
+    return lendersToLoans[user];
+  }
+
+  function getUserBorrowedLoans(uint256 user) external view returns (uint256[] memory) {
+    return borrowersToLoans[user];
+  }
+
   function getLoanInfo(uint256 loanId) external view returns (
     uint256,
     uint256,
     uint16,
     uint32,
     uint256,
-    uint256
+    uint256,
+    uint32
   ) {
     return (
       loans[loanId].amount,
@@ -229,7 +240,8 @@ contract LiquidLoan is SnowflakeResolver {
       loans[loanId].rate,
       loans[loanId].deadline,
       loans[loanId].borrower,
-      loans[loanId].lender
+      loans[loanId].lender,
+      loans[loanId].createdAt
     );
   }
 
